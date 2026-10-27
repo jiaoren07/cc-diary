@@ -1,0 +1,12 @@
+# ---- 隐私数据：真实日记和对话衍生内容，永远不进仓库 ----
+entries/
+entries_*/
+web/data.js
+logs/
+
+# ---- 本机配置 ----
+.claude/
+com.clawd.diary.plist
+.DS_Store
+__pycache__/
+*.pyc

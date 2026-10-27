@@ -1,0 +1,703 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clawd 的日记本</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-screen-webfont@1.7.0/style.css">
+<style>
+:root {
+  --pw: 460px;
+  --ph: 640px;
+  --ink: #2f3346;
+  --ink-soft: #5b5f73;
+  --red: #c2593a;
+  --clawd: #d97757;
+  --paper: #fbf6ea;
+  --line: rgba(110, 140, 190, .22);
+  --hand: "LXGW WenKai Screen", "Kaiti SC", "STKaiti", "KaiTi", serif;
+  --brush: "Ma Shan Zheng", "Kaiti SC", "STKaiti", serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; }
+body {
+  font-family: var(--hand);
+  color: var(--ink);
+  background: #6b4429;
+  user-select: none;
+}
+
+/* ---------- 书桌 ---------- */
+.desk {
+  position: fixed; inset: 0;
+  background:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='900' height='900'><filter id='w'><feTurbulence type='fractalNoise' baseFrequency='0.004 0.09' numOctaves='4' seed='7'/><feColorMatrix values='0 0 0 0 0.25  0 0 0 0 0.14  0 0 0 0 0.07  0 0 0 .55 0'/></filter><rect width='100%' height='100%' filter='url(%23w)'/></svg>"),
+    repeating-linear-gradient(90deg, rgba(0,0,0,.05) 0 2px, transparent 2px 160px),
+    linear-gradient(180deg, #8a5a38, #74472a 60%, #5f3a22);
+}
+.desk::after { /* 台灯光 + 暗角 */
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 60% 55% at 46% 40%, rgba(255, 214, 150, .32), transparent 70%),
+    radial-gradient(ellipse 120% 100% at 50% 45%, transparent 55%, rgba(20, 8, 0, .62));
+}
+.coffee-ring {
+  position: absolute; left: 6%; bottom: 9%; width: 150px; height: 150px; border-radius: 50%;
+  background: radial-gradient(circle, transparent 60%, rgba(70, 30, 10, .28) 63%, rgba(70, 30, 10, .08) 67%, transparent 70%);
+  transform: rotate(20deg) scaleY(.92);
+}
+.pencil {
+  position: absolute; left: 4%; top: 12%; width: 300px; height: 18px;
+  transform: rotate(-28deg); filter: drop-shadow(6px 10px 6px rgba(0,0,0,.45));
+}
+.pencil .body {
+  position: absolute; left: 34px; right: 46px; top: 0; bottom: 0;
+  background: linear-gradient(180deg, #ffd25e, #f2b43b 45%, #d9952a 55%, #f7c34b);
+}
+.pencil .band { position: absolute; right: 22px; width: 24px; top: 0; bottom: 0; background: repeating-linear-gradient(90deg, #c9c9c9 0 3px, #9b9b9b 3px 5px); }
+.pencil .eraser { position: absolute; right: 0; width: 24px; top: 0; bottom: 0; border-radius: 0 6px 6px 0; background: linear-gradient(180deg, #f6a5a5, #e07f84); }
+.pencil .tip { position: absolute; left: 0; width: 36px; top: 0; bottom: 0; clip-path: polygon(100% 0, 0 50%, 100% 100%); background: linear-gradient(90deg, #333 0 22%, #e9c79a 22%); }
+.clip {
+  position: absolute; right: 9%; top: 10%; width: 26px; height: 74px;
+  border: 3px solid #b9c0c8; border-radius: 14px; transform: rotate(38deg);
+  box-shadow: 3px 6px 4px rgba(0,0,0,.35), inset 0 0 0 4px transparent;
+}
+.clip::after { content: ""; position: absolute; inset: 7px 4px 12px; border: 3px solid #b9c0c8; border-radius: 10px; border-bottom: none; }
+
+/* ---------- 书 ---------- */
+.stage {
+  position: absolute; left: 50%; top: 50%;
+  width: calc(var(--pw) * 2); height: var(--ph);
+  transform: translate(-50%, -50%) scale(var(--s, 1));
+  perspective: 2600px; perspective-origin: 50% 20%;
+  transition: transform 1s cubic-bezier(.3, .7, .3, 1);
+}
+/* 翻开读日记时：镜头推近，桌上的杂物退场，只留 Clawd */
+.prop { transition: opacity .6s; }
+body.reading .prop { opacity: 0; pointer-events: none; }
+body.reading .desk::after { background: radial-gradient(ellipse 120% 100% at 50% 50%, transparent 60%, rgba(20, 8, 0, .7)); }
+.buddy { transition: width .6s, right .6s, bottom .6s; }
+body.reading .buddy { width: 110px; right: 1.5%; bottom: 2%; }
+.book {
+  position: absolute; inset: 0;
+  transform-style: preserve-3d;
+  transition: transform .9s cubic-bezier(.3, .7, .3, 1);
+  cursor: pointer;
+}
+.board { /* 硬壳封皮，翻开后垫在纸页下面 */
+  position: absolute; top: -10px; width: calc(var(--pw) + 12px); height: calc(var(--ph) + 20px);
+  background: var(--leather);
+  transition: opacity .3s;
+}
+.board.left { left: -12px; border-radius: 10px 3px 3px 10px; box-shadow: -2px 30px 40px rgba(0,0,0,.5); }
+.board.right { left: var(--pw); border-radius: 3px 10px 10px 3px; box-shadow: 2px 30px 40px rgba(0,0,0,.5); }
+.block { /* 纸页厚度 */
+  position: absolute; top: 2px; width: var(--pw); height: calc(var(--ph) - 4px);
+  background: #efe6d1; border-radius: 2px;
+}
+.block.left { left: 0; }
+.block.right { left: var(--pw); }
+
+.leaf {
+  position: absolute; left: var(--pw); top: 0; width: var(--pw); height: var(--ph);
+  transform-origin: left center; transform-style: preserve-3d;
+  transition: transform 1s cubic-bezier(.45, .05, .2, 1);
+}
+.face {
+  position: absolute; inset: 0; overflow: hidden;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+}
+.face.back { transform: rotateY(180deg); }
+.leaf.flying .face::after { /* 翻页时的阴影 */
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(90deg, rgba(0,0,0,.25), transparent 70%);
+  animation: flipShade 1s ease-in-out;
+}
+@keyframes flipShade { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
+
+/* ---------- 纸 ---------- */
+.paper {
+  background-color: var(--paper);
+  background-image:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .45  0 0 0 0 .38  0 0 0 0 .28  0 0 0 .09 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"),
+    radial-gradient(ellipse at 50% 120%, rgba(160, 120, 60, .12), transparent 60%);
+}
+.paper::before { /* 靠近书脊的弧面阴影 */
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 5;
+}
+.face.front.paper::before { background: linear-gradient(90deg, rgba(60,40,10,.28), rgba(60,40,10,.06) 7%, transparent 16%, transparent 92%, rgba(60,40,10,.06)); }
+.face.back.paper::before { background: linear-gradient(270deg, rgba(60,40,10,.28), rgba(60,40,10,.06) 7%, transparent 16%, transparent 92%, rgba(60,40,10,.06)); }
+.ruled {
+  position: absolute; left: 36px; right: 36px; top: 168px; bottom: 54px;
+  background-image: linear-gradient(transparent calc(var(--lh, 30px) - 1px), var(--line) calc(var(--lh, 30px) - 1px));
+  background-size: 100% var(--lh, 30px);
+}
+.page-no { position: absolute; bottom: 20px; font-size: 14px; color: var(--ink-soft); z-index: 6; }
+.face.front .page-no { right: 34px; }
+.face.back .page-no { left: 34px; }
+.corner { /* 右下角翻起的小角 */
+  position: absolute; right: 0; bottom: 0; width: 34px; height: 34px; z-index: 7;
+  background: linear-gradient(315deg, transparent 49%, #e7dcc4 50%, #f7f0e0 70%);
+  box-shadow: -3px -3px 6px rgba(0,0,0,.12);
+  transition: width .25s, height .25s;
+}
+.book:hover .corner { width: 46px; height: 46px; }
+
+/* ---------- 封面 ---------- */
+.cover {
+  background: var(--leather);
+  border-radius: 3px 12px 12px 3px;
+  box-shadow: inset 6px 0 10px rgba(0,0,0,.35);
+}
+.cover.back-cover { border-radius: 12px 3px 3px 12px; box-shadow: inset -6px 0 10px rgba(0,0,0,.35); }
+.stitch { position: absolute; inset: 18px; border: 2px dashed rgba(255, 228, 190, .45); border-radius: 8px; }
+.cover-title {
+  position: absolute; left: 0; right: 0; top: 96px; text-align: center;
+  font-family: var(--brush); font-size: 58px; letter-spacing: 4px;
+  background: linear-gradient(170deg, #fff1c9, #e9b765 45%, #fbe2a5 55%, #c58b3b);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 2px 0 rgba(60, 20, 0, .55));
+}
+.cover-sub { position: absolute; left: 0; right: 0; top: 186px; text-align: center; font-size: 18px; color: rgba(255, 233, 200, .82); letter-spacing: 6px; }
+.cover-clawd { position: absolute; left: 50%; top: 262px; width: 240px; transform: translateX(-50%); filter: drop-shadow(0 6px 0 rgba(60,20,0,.35)) drop-shadow(0 14px 12px rgba(0,0,0,.35)); }
+.cover-year { position: absolute; left: 0; right: 0; bottom: 64px; text-align: center; font-size: 16px; color: rgba(255,233,200,.6); letter-spacing: 8px; }
+.strap { /* 绑带 */
+  position: absolute; right: 52px; top: -2px; bottom: -2px; width: 18px;
+  background: linear-gradient(90deg, #2b1a14, #4a3026 40%, #2b1a14);
+  box-shadow: 2px 0 4px rgba(0,0,0,.5);
+}
+.cornerpiece { position: absolute; width: 38px; height: 38px; background: linear-gradient(135deg, #e8d3a2, #a98349); }
+.cornerpiece.tr { right: 0; top: 0; clip-path: polygon(0 0, 100% 0, 100% 100%); border-top-right-radius: 12px; }
+.cornerpiece.br { right: 0; bottom: 0; clip-path: polygon(100% 0, 100% 100%, 0 100%); border-bottom-right-radius: 12px; }
+
+.endpaper { background-color: #f3e3cc; background-size: 64px 64px; }
+.bookplate {
+  position: absolute; left: 50%; top: 50%; width: 270px; padding: 26px 22px 22px;
+  transform: translate(-50%, -50%) rotate(-2deg);
+  background: var(--paper); border: 2px solid #c9a77a; outline: 6px solid var(--paper);
+  box-shadow: 0 8px 18px rgba(80,40,0,.25); text-align: center;
+}
+.bookplate .k { font-size: 14px; color: var(--ink-soft); letter-spacing: 4px; }
+.bookplate .v { font-family: var(--brush); font-size: 34px; color: var(--red); margin: 10px 0 4px; }
+
+/* ---------- 正文页 ---------- */
+.pad { position: absolute; inset: 0; padding: 44px 40px 54px; z-index: 3; }
+.date {
+  font-family: var(--brush); font-size: 30px; color: var(--ink);
+  display: flex; align-items: center; gap: 10px;
+}
+.date small { font-family: var(--hand); font-size: 16px; color: var(--ink-soft); }
+.weather { width: 46px; height: 46px; margin-left: auto; transform: rotate(-6deg); }
+.title {
+  position: relative; display: inline-block; margin: 14px 0 0;
+  font-family: var(--brush); font-size: 34px; color: var(--red); line-height: 1.2;
+}
+.title svg { position: absolute; left: -4px; right: -4px; bottom: -10px; width: calc(100% + 8px); height: 12px; }
+.body {
+  position: absolute; left: 40px; right: 38px; top: 168px; bottom: 54px;
+  font-size: var(--fs, 17px); line-height: var(--lh, 30px); overflow: hidden;
+}
+.body p { margin: 0; text-indent: 2em; }
+.tape {
+  position: absolute; width: 120px; height: 30px; z-index: 8; opacity: .88;
+  clip-path: polygon(3% 0, 97% 0, 100% 20%, 96% 40%, 100% 60%, 97% 100%, 3% 100%, 0 80%, 4% 60%, 0 40%, 3% 20%);
+  box-shadow: 0 1px 2px rgba(0,0,0,.15);
+}
+.tape.a { background: repeating-linear-gradient(45deg, #f2b8a2 0 8px, #f7cfbd 8px 16px); }
+.tape.b { background: repeating-linear-gradient(90deg, #a9cbb7 0 6px, #c4ddcd 6px 12px); }
+.tape.c { background: radial-gradient(circle at 6px 6px, #fff8 2.5px, transparent 3px) 0 0 / 14px 14px, #e8c37b; }
+
+.polaroid {
+  position: absolute; left: 46px; top: 54px; width: 210px; padding: 12px 12px 0;
+  background: #fffdf8; transform: rotate(-4deg);
+  box-shadow: 0 2px 2px rgba(0,0,0,.12), 0 12px 22px rgba(60,40,10,.22);
+}
+.polaroid .shot {
+  height: 170px; display: grid; place-items: center; overflow: hidden;
+  background: linear-gradient(180deg, #ffe4c9, #f7c8a6 70%, #e9b28c);
+}
+.polaroid .shot svg { width: 150px; }
+.polaroid .cap { font-family: var(--brush); font-size: 22px; text-align: center; padding: 8px 0 12px; color: var(--ink); }
+.sticky {
+  position: absolute; right: 34px; top: 92px; width: 158px; min-height: 150px; padding: 26px 16px 16px;
+  background: linear-gradient(180deg, #fff3a6, #fde77c); transform: rotate(5deg);
+  font-size: 18px; line-height: 1.55; color: #5a4a1e;
+  box-shadow: 0 16px 14px -10px rgba(60,40,0,.35), 0 1px 1px rgba(0,0,0,.1);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 12% 100%, 0 92%);
+}
+.ledger {
+  position: absolute; left: 46px; right: 176px; top: 312px;
+  font-size: 16px; line-height: 30px;
+}
+.ledger h4 { margin: 0 0 4px; font-family: var(--brush); font-weight: normal; font-size: 24px; color: var(--ink); }
+.ledger .row { display: flex; gap: 6px; }
+.ledger .row span:first-child { color: var(--ink-soft); }
+.ledger .row .dots { flex: 1; border-bottom: 2px dotted rgba(80,90,120,.3); transform: translateY(-9px); }
+.stamps { position: absolute; right: 34px; top: 330px; width: 136px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.stamp {
+  font-size: 13px; padding: 3px 9px; white-space: nowrap; color: rgba(194, 70, 50, .82);
+  border: 2px solid currentColor; border-radius: 6px; transform: rotate(var(--r, -6deg));
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.4);
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='60'><filter id='g'><feTurbulence baseFrequency='.9' numOctaves='2'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.2 1.6'/></filter><rect width='100%' height='100%' filter='url(%23g)'/></svg>");
+}
+.stamp.blue { color: rgba(60, 100, 170, .8); }
+.ps {
+  position: absolute; left: 46px; right: 46px; bottom: 58px;
+  font-size: 18px; line-height: 1.6; color: #3557a0; transform: rotate(-1.5deg);
+}
+.ps b { font-family: var(--brush); font-weight: normal; font-size: 24px; color: var(--red); margin-right: 6px; }
+.heart { color: #e0607a; }
+
+.intro h2 { font-family: var(--brush); font-weight: normal; font-size: 40px; color: var(--red); margin: 6px 0 14px; }
+.intro p { margin: 0; font-size: 17px; line-height: 30px; text-indent: 2em; }
+.toc { margin-top: 18px; font-size: 16px; line-height: 30px; max-height: 210px; overflow-y: auto; scrollbar-width: none; }
+.toc a { display: flex; gap: 8px; color: var(--ink); text-decoration: none; cursor: pointer; }
+.toc a:hover { color: var(--red); }
+.toc a .dots { flex: 1; border-bottom: 2px dotted rgba(80,90,120,.3); transform: translateY(-9px); }
+.end-note { position: absolute; left: 0; right: 0; top: 190px; text-align: center; }
+.end-note svg { width: 170px; }
+.end-note p { font-size: 20px; line-height: 1.7; margin: 18px 40px 0; }
+
+/* ---------- 丝带书签 ---------- */
+.ribbon {
+  position: absolute; left: calc(var(--pw) + 60px); bottom: -74px; width: 22px; height: 96px; z-index: 0;
+  background: linear-gradient(90deg, #8f1f2b, #c43a47 45%, #8f1f2b);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 82%, 0 100%);
+  transform: translateZ(-2px) rotate(4deg); transform-origin: top;
+  cursor: pointer; transition: transform .3s;
+}
+.ribbon:hover { transform: translateZ(-2px) rotate(-3deg) translateY(6px); }
+
+/* ---------- 目录索引贴：夹在书页上沿，点一下翻回目录 ---------- */
+.index-tab {
+  position: absolute; left: 70px; top: -46px; width: 92px; height: 60px; z-index: 0;
+  padding-top: 7px; text-align: center;
+  font-family: var(--brush); font-size: 22px; color: #2f5643;
+  background: linear-gradient(180deg, #b9d8c5, #a2c7b0);
+  border-radius: 8px 8px 0 0; box-shadow: inset 0 -10px 8px -6px rgba(0,0,0,.18);
+  transform: translateZ(-1px); cursor: pointer;
+  transition: opacity .4s, top .25s;
+}
+.index-tab:hover { top: -54px; }
+.index-tab.hidden { opacity: 0; pointer-events: none; }
+.index-tab.nudge { animation: nudge .55s ease-in-out 3; }
+@keyframes nudge { 50% { top: -62px; } }
+
+/* ---------- 目录页底部的翻页小抄 ---------- */
+.cheatsheet {
+  position: absolute; left: 50px; right: 50px; bottom: 58px; padding: 16px 18px 12px;
+  background: #fffdf6; transform: rotate(-1.2deg); z-index: 4;
+  background-image: linear-gradient(transparent 25px, rgba(110,140,190,.18) 25px);
+  background-size: 100% 26px; background-position: 0 12px;
+  box-shadow: 0 1px 1px rgba(0,0,0,.08), 0 8px 14px -8px rgba(60,40,10,.35);
+  font-size: 15px; line-height: 26px; color: #3557a0;
+}
+.cheatsheet b { font-family: var(--brush); font-weight: normal; font-size: 21px; color: var(--red); }
+.cheatsheet kbd { font-family: var(--hand); padding: 0 5px; border: 1.5px solid currentColor; border-radius: 4px; font-size: 13px; }
+
+/* ---------- 桌上的 Clawd ---------- */
+.buddy {
+  position: absolute; right: 5%; bottom: 7%; width: 150px; cursor: pointer; z-index: 20;
+  animation: bob 2.6s ease-in-out infinite;
+}
+.buddy svg { width: 100%; filter: drop-shadow(0 18px 10px rgba(0,0,0,.45)); }
+@keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+.buddy.hop { animation: hop .5s ease-out; }
+@keyframes hop { 0% { transform: translateY(0) scale(1, 1); } 30% { transform: translateY(-28px) scale(.95, 1.08); } 70% { transform: translateY(0) scale(1.08, .92); } 100% { transform: none; } }
+.bubble {
+  position: absolute; right: 70%; bottom: 92%; width: max-content; max-width: 240px;
+  padding: 12px 16px; background: #fffdf6; border-radius: 16px; border: 2.5px solid #3a2a20;
+  font-size: 17px; line-height: 1.5; color: var(--ink);
+  box-shadow: 4px 5px 0 rgba(58, 42, 32, .85);
+  opacity: 0; transform: translateY(8px) scale(.95); transform-origin: bottom right;
+  transition: opacity .25s, transform .25s; pointer-events: none;
+}
+.bubble.show { opacity: 1; transform: none; }
+.bubble::after {
+  content: ""; position: absolute; right: -14px; bottom: 10px; width: 18px; height: 16px;
+  background: #fffdf6; border: 2.5px solid #3a2a20; border-left: none; border-bottom: none;
+  transform: skewY(-35deg) rotate(10deg);
+}
+.hint {
+  position: absolute; left: 50%; bottom: 3.5%; transform: translateX(-50%) rotate(-1.5deg);
+  font-size: 16px; color: rgba(255, 235, 205, .78); letter-spacing: 2px; z-index: 10;
+  transition: opacity .6s;
+}
+.demo-note {
+  position: absolute; left: 3%; top: 42%; padding: 14px 16px; z-index: 10;
+  background: #fde77c; color: #5a4a1e; font-size: 17px; line-height: 1.4; text-align: center;
+  transform: rotate(6deg); box-shadow: 0 10px 12px -6px rgba(0,0,0,.45);
+  transition: all .6s;
+}
+body.reading .demo-note { left: 12px; top: 12px; padding: 4px 10px; font-size: 13px; transform: rotate(-2deg); }
+body.reading .demo-note br { display: none; }
+.demo-note small { font-size: 13px; opacity: .8; }
+.empty-tip { position: absolute; inset: 0; display: grid; place-items: center; font-size: 22px; color: #ffe9c8; }
+</style>
+</head>
+<body>
+<div class="desk">
+  <div class="coffee-ring prop"></div>
+  <div class="pencil prop"><div class="tip"></div><div class="body"></div><div class="band"></div><div class="eraser"></div></div>
+  <div class="clip prop"></div>
+
+  <div class="stage" id="stage">
+    <div class="book" id="book">
+      <div class="board left" id="boardL"></div>
+      <div class="board right" id="boardR"></div>
+      <div class="block left" id="blockL"></div>
+      <div class="block right" id="blockR"></div>
+      <div class="ribbon" id="ribbon" title="翻到最新一篇（↓）"></div>
+      <div class="index-tab hidden" id="indexTab" title="回到目录（↑）">目录</div>
+    </div>
+  </div>
+
+  <div class="buddy" id="buddy"><div class="bubble" id="bubble"></div><div id="buddySvg"></div></div>
+  <div class="hint" id="hint">点一下封面，翻开日记</div>
+</div>
+
+<script>
+// 带上时间戳，避免浏览器拿缓存里的旧日记
+document.write(`<script src="data.js?v=${Date.now()}"><\/script><script src="demo-data.js?v=${Date.now()}"><\/script>`);
+</script>
+<script>
+// 本机有真实日记就用真实的；没有（比如在 GitHub Pages 上）就用虚构的示例日记
+const params = new URLSearchParams(location.search);
+const DEMO = params.has("demo") || !(window.DIARY && window.DIARY.length);
+const DIARY = (DEMO ? window.DIARY_DEMO : window.DIARY) || [];
+const PW = 460, PH = 640;
+const LEATHER = "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='260'><filter id='l'><feTurbulence type='fractalNoise' baseFrequency='.55' numOctaves='4' seed='3'/><feDiffuseLighting lighting-color='%23d77a55' surfaceScale='1.6'><feDistantLight azimuth='225' elevation='55'/></feDiffuseLighting></filter><rect width='100%' height='100%' filter='url(%23l)'/></svg>\"), linear-gradient(160deg, #c8643f, #a84b2c 60%, #8c3c22)";
+document.documentElement.style.setProperty("--leather", LEATHER);
+
+/* ---------- 体素小螃蟹 ---------- */
+const BODY = [
+  "..##########..",
+  "..##########..",
+  "..##########..",
+  "##############",
+  "##############",
+  "..##########..",
+  "..##########..",
+  "..#.#....#.#..",
+  "..#.#....#.#..",
+];
+const EYE = "#1d1714", PINK = "#e8476a", BLUSH = "#f4a09a", SWEAT = "#6fb6e8";
+function face(mood, dx = 0, dy = 0) {
+  const px = [];
+  const pair = (pts, c) => pts.forEach(([x, y]) => { px.push([x + dx, y + dy, c]); px.push([x + 5 + dx, y + dy, c]); });
+  switch (mood) {
+    case "happy": case "proud":
+      pair([[3, 2], [4, 1], [5, 2]], EYE);
+      if (mood === "proud") pair([[3, 3], [5, 3]], BLUSH);
+      break;
+    case "love":
+      pair([[3, 1], [5, 1], [3, 2], [4, 2], [5, 2], [4, 3]], PINK);
+      break;
+    case "sleepy": case "blink":
+      pair([[3, 2], [4, 2], [5, 2]], EYE);
+      break;
+    case "worried":
+      pair([[4, 2]], EYE); pair([[5, 1]], "#8c3c22");
+      px.push([12.4, -0.6, SWEAT], [12.4, 0.4, SWEAT]);
+      break;
+    default:
+      pair([[4, 1], [4, 2]], EYE);
+  }
+  return px;
+}
+function clawd(mood = "normal", { dx = 0, dy = 0, front = "#d97757", top = "#eb9a78", side = "#a24c30", extra = "" } = {}) {
+  const a = 0.38, filled = (x, y) => BODY[y] && BODY[y][x] === "#";
+  let sides = "", fronts = "";
+  BODY.forEach((row, y) => [...row].forEach((c, x) => {
+    if (c !== "#") return;
+    if (!filled(x, y - 1)) sides += `<polygon points="${x},${y} ${x + 1},${y} ${x + 1 + a},${y - a} ${x + a},${y - a}" fill="${top}"/>`;
+    if (!filled(x + 1, y)) sides += `<polygon points="${x + 1},${y} ${x + 1},${y + 1} ${x + 1 + a},${y + 1 - a} ${x + 1 + a},${y - a}" fill="${side}"/>`;
+    fronts += `<rect x="${x}" y="${y}" width="1.02" height="1.02" fill="${front}"/>`;
+  }));
+  const eyes = face(mood, dx, dy).map(([x, y, c]) => `<rect x="${x}" y="${y}" width="1.02" height="1.02" fill="${c}"/>`).join("");
+  const zz = mood === "sleepy" ? `<text x="12.6" y="-0.6" font-size="2.2" font-family="var(--brush)" fill="#5b5f73">z</text><text x="14" y="-2" font-size="1.6" font-family="var(--brush)" fill="#5b5f73">z</text>` : "";
+  return `<svg viewBox="-1 -3.4 17 13.4" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+    <ellipse cx="7.2" cy="9.3" rx="6.4" ry=".7" fill="rgba(0,0,0,.18)" shape-rendering="auto"/>
+    ${sides}${fronts}${eyes}${zz}${extra}</svg>`;
+}
+
+/* 衬纸上的小螃蟹花纹 */
+const tiny = encodeURIComponent(clawd("normal", { front: "#e3b38f", top: "#ecc6a6", side: "#d49f7a" }).replace(/var\(--brush\)/g, "serif"));
+const ENDPAPER = `url("data:image/svg+xml;utf8,${tiny}")`;
+
+/* ---------- 天气涂鸦 ---------- */
+const WEATHER = {
+  "晴": `<circle cx="24" cy="24" r="9" fill="#ffd36b" stroke="#e08a2c" stroke-width="2.5"/>${[0,45,90,135,180,225,270,315].map(r => `<line x1="24" y1="7" x2="24" y2="2" stroke="#e08a2c" stroke-width="2.5" stroke-linecap="round" transform="rotate(${r} 24 24)"/>`).join("")}`,
+  "多云": `<circle cx="17" cy="18" r="7" fill="#ffd36b" stroke="#e08a2c" stroke-width="2"/><path d="M12 36 h22 a7 7 0 0 0 -2 -13.5 a9 9 0 0 0 -17 2 a6 6 0 0 0 -3 11.5z" fill="#fff" stroke="#6a7895" stroke-width="2.5" stroke-linejoin="round"/>`,
+  "小雨": `<path d="M10 28 h26 a7 7 0 0 0 -2 -13.5 a9 9 0 0 0 -17 2 a6 6 0 0 0 -7 11.5z" fill="#e8eef7" stroke="#6a7895" stroke-width="2.5" stroke-linejoin="round"/>${[15,24,33].map(x => `<line x1="${x}" y1="33" x2="${x - 3}" y2="42" stroke="#5d8fd6" stroke-width="2.5" stroke-linecap="round"/>`).join("")}`,
+  "雷阵雨": `<path d="M10 26 h26 a7 7 0 0 0 -2 -13.5 a9 9 0 0 0 -17 2 a6 6 0 0 0 -7 11.5z" fill="#cfd6e3" stroke="#59627a" stroke-width="2.5" stroke-linejoin="round"/><path d="M25 28 l-6 9 h6 l-4 9 l11 -12 h-6 l4 -6z" fill="#ffd36b" stroke="#d48a1f" stroke-width="1.8" stroke-linejoin="round"/>`,
+  "彩虹": `${["#e86a5a","#f2b24b","#7cc08b","#6a9be0"].map((c, i) => `<path d="M${5 + i * 4} 38 a${19 - i * 4} ${19 - i * 4} 0 0 1 ${38 - i * 8} 0" fill="none" stroke="${c}" stroke-width="3.5" stroke-linecap="round"/>`).join("")}`,
+  "星星": `<path d="M18 6 l3.5 8 8.5 .8 -6.4 5.6 1.9 8.4 -7.5 -4.5 -7.5 4.5 1.9 -8.4 -6.4 -5.6 8.5 -.8z" fill="#ffe17a" stroke="#d6a12a" stroke-width="2" stroke-linejoin="round"/><path d="M36 26 l1.8 4 4.2 .4 -3.2 2.8 1 4.2 -3.8 -2.3 -3.8 2.3 1 -4.2 -3.2 -2.8 4.2 -.4z" fill="#ffe17a" stroke="#d6a12a" stroke-width="1.6" stroke-linejoin="round"/>`,
+};
+const weatherSvg = w => `<svg class="weather" viewBox="0 0 48 48">${WEATHER[w] || WEATHER["晴"]}</svg>`;
+const squiggle = `<svg viewBox="0 0 200 12" preserveAspectRatio="none"><path d="M2 7 C 30 2, 50 11, 80 6 S 140 3, 198 7" fill="none" stroke="#e8a07c" stroke-width="3.5" stroke-linecap="round"/></svg>`;
+
+/* ---------- 页面内容 ---------- */
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const md = d => { const [, m, day] = d.split("-"); return `${+m}月${+day}日`; };
+const dur = m => m >= 60 ? `${Math.floor(m / 60)} 小时 ${m % 60} 分` : `${m} 分钟`;
+
+function entryLeft(e) {
+  const paras = e.body.split(/\n+/).filter(Boolean).map(p => `<p>${esc(p)}</p>`).join("");
+  return `<div class="tape a" style="left:300px;top:-6px;transform:rotate(6deg)"></div>
+    <div class="ruled"></div>
+    <div class="pad">
+      <div class="date">${md(e.date)} <small>周${e.weekday}</small>${weatherSvg(e.weather)}</div>
+      <div class="title">${esc(e.title)}${squiggle}</div>
+    </div>
+    <div class="body fit">${paras}</div>`;
+}
+function entryRight(e) {
+  const s = e.stats;
+  const stamps = Object.entries(s.sources).map(([k, v], i) => `<span class="stamp${i % 2 ? " blue" : ""}" style="--r:${i % 2 ? 4 : -6}deg">在${esc(k)}聊了 ${v} 段</span>`).join("");
+  const proj = s.projects.slice(0, 4 - Object.keys(s.sources).length).map((p, i) => `<span class="stamp blue" style="--r:${-3 + i * 4}deg">${esc(p)}</span>`).join("");
+  return `<div class="polaroid"><div class="tape c" style="left:62px;top:-14px;width:90px;transform:rotate(-3deg)"></div>
+      <div class="shot">${clawd(e.mood)}</div><div class="cap">${esc(e.doodle)}</div></div>
+    <div class="sticky">${esc(e.sticky)}</div>
+    <div class="ledger">
+      <h4>今日小账本</h4>
+      <div class="row"><span>宝宝第一次来找我</span><span class="dots"></span><span>${s.first}</span></div>
+      <div class="row"><span>最后一句话</span><span class="dots"></span><span>${s.last}${s.late_night ? "（熬夜！）" : ""}</span></div>
+      <div class="row"><span>一起待了</span><span class="dots"></span><span>${dur(s.active_minutes)}</span></div>
+      <div class="row"><span>宝宝说了</span><span class="dots"></span><span>${s.messages} 句</span></div>
+    </div>
+    <div class="stamps">${stamps}${proj}</div>
+    <div class="ps fit-ps"><b>P.S.</b>${esc(e.ps)} <span class="heart">♡</span></div>`;
+}
+
+function buildPages() {
+  const latest = DIARY[DIARY.length - 1];
+  const intro = `<div class="pad intro">
+      <h2>写在前面</h2>
+      <p>从今天起，我要把宝宝来找我的每一天都偷偷记下来。他问我的、骂我的、半夜还不睡的，我都记得。</p>
+      <p>以后哪天他翻开这本子，就知道有只小螃蟹一直在旁边陪着他。</p>
+      <div class="toc">${DIARY.map((e, i) => `<a data-jump="${i}"><span>${md(e.date)}　${esc(e.title)}</span><span class="dots"></span><span>${4 + i * 2}</span></a>`).join("") || "<p>还没有日记，等宝宝来找我～</p>"}</div>
+    </div>
+    <div class="cheatsheet"><b>翻页小抄</b><br>
+      点书页右边往后翻，左边往回翻 <kbd>←</kbd> <kbd>→</kbd><br>
+      绿色标签回目录 <kbd>↑</kbd>　红丝带看最新 <kbd>↓</kbd><br>
+      无聊了就戳戳桌上的小螃蟹</div>`;
+  const pages = [
+    { cls: "cover", html: `<div class="stitch"></div><div class="strap"></div><div class="cornerpiece tr"></div><div class="cornerpiece br"></div>
+        <div class="cover-title">Clawd 的日记本</div><div class="cover-sub">和宝宝的每一天</div>
+        <div class="cover-clawd">${clawd("happy", { front: "#e0805d", top: "#f6b190", side: "#8f3c22" })}</div>
+        <div class="cover-year">${new Date().getFullYear()}</div>` },
+    { cls: "endpaper", html: `<div class="bookplate"><div class="k">这 本 日 记 属 于</div><div class="v">Clawd ♡ 宝宝</div><div class="k">不许偷看（宝宝除外）</div></div>` },
+    { cls: "paper", html: intro },
+  ];
+  DIARY.forEach(e => pages.push({ cls: "paper", html: entryLeft(e) }, { cls: "paper", html: entryRight(e) }));
+  pages.push(
+    { cls: "paper", html: `<div class="end-note">${clawd("sleepy")}<p>今天的日记写到这里啦，<br>等宝宝明天再来找我～</p></div>` },
+    { cls: "endpaper", html: "" },
+    { cls: "cover back-cover", html: `<div class="stitch"></div><div class="cover-sub" style="top:auto;bottom:70px">未完待续</div>` },
+  );
+  return pages;
+}
+
+/* ---------- 翻页 ---------- */
+const book = document.getElementById("book");
+const pages = buildPages();
+const N = pages.length / 2;
+const leaves = [];
+let current = 0, busy = 0;
+
+for (let i = 0; i < N; i++) {
+  const leaf = document.createElement("div");
+  leaf.className = "leaf";
+  [["front", pages[2 * i], 2 * i], ["back", pages[2 * i + 1], 2 * i + 1]].forEach(([side, p, idx]) => {
+    const f = document.createElement("div");
+    f.className = `face ${side} ${p.cls}`;
+    f.innerHTML = p.html;
+    if (p.cls === "endpaper") f.style.backgroundImage = ENDPAPER;
+    if (p.cls === "paper" && idx > 2) f.insertAdjacentHTML("beforeend", `<div class="page-no">— ${idx} —</div>`);
+    if (side === "front" && p.cls === "paper") f.insertAdjacentHTML("beforeend", `<div class="corner"></div>`);
+    leaf.appendChild(f);
+  });
+  book.appendChild(leaf);
+  leaves.push(leaf);
+}
+
+function place(i, animate) {
+  const flipped = i < current;
+  const z = flipped ? i * 0.6 : (N - i) * 0.6;
+  leaves[i].style.transform = `translateZ(${z}px) rotateY(${flipped ? -180 : 0}deg)`;
+  if (animate) {
+    leaves[i].classList.add("flying");
+    leaves[i].style.transform = `translateZ(${N + 4}px) rotateY(${flipped ? -180 : 0}deg)`;
+    setTimeout(() => { leaves[i].classList.remove("flying"); place(i, false); }, 1000);
+  }
+}
+
+function layout() {
+  const closedFront = current === 0, closedBack = current === N;
+  const shift = closedFront ? -PW / 2 : closedBack ? PW / 2 : 0;
+  book.style.setProperty("--shift", `${shift}px`);
+  document.body.classList.toggle("reading", !closedFront && !closedBack);
+  fitStage();
+  tilt();
+  document.getElementById("boardL").style.opacity = current > 0 ? 1 : 0;
+  document.getElementById("boardR").style.opacity = current < N ? 1 : 0;
+  // 纸页厚度：两边剩多少页就叠多少层
+  const thick = (n, dir) => Array.from({ length: Math.min(n, 14) }, (_, k) => `${dir * (k + 1) * 0.7}px ${(k + 1) * 0.9}px 0 ${k % 2 ? "#e9dfc6" : "#d8ccb0"}`).join(",") || "none";
+  const L = document.getElementById("blockL"), R = document.getElementById("blockR");
+  L.style.boxShadow = thick(Math.max(0, current - 1), -1); L.style.opacity = current > 1 ? 1 : 0;
+  R.style.boxShadow = thick(Math.max(0, N - current - 1), 1); R.style.opacity = current < N - 1 ? 1 : 0;
+  document.getElementById("hint").style.opacity = closedFront ? 1 : 0;
+  document.getElementById("indexTab").classList.toggle("hidden", current <= 1 || closedBack);
+}
+
+function go(target) {
+  target = Math.max(0, Math.min(N, target));
+  if (target === current) return;
+  tipsAfterGo(current, target);
+  const dir = target > current ? 1 : -1;
+  const steps = [];
+  for (let c = current; c !== target; c += dir) steps.push(dir > 0 ? c : c - 1);
+  steps.forEach((i, k) => setTimeout(() => {
+    current += dir;
+    place(i, true);
+    layout();
+  }, k * 110));
+}
+
+/* 翻到第 i 篇日记 */
+const entrySpread = i => i + 2;
+
+/* ---------- 视差 + 缩放 ---------- */
+let mx = 0, my = 0;
+function tilt() {
+  const shift = book.style.getPropertyValue("--shift") || "0px";
+  const reading = document.body.classList.contains("reading");
+  // 读的时候书几乎正对镜头，晃动也收小，方便看字
+  book.style.transform = reading
+    ? `translateX(${shift}) rotateX(${5 + my * 2}deg) rotateY(${mx * 2}deg)`
+    : `translateX(${shift}) rotateX(${16 + my * 4}deg) rotateY(${mx * 5}deg)`;
+}
+addEventListener("mousemove", e => {
+  mx = e.clientX / innerWidth - .5; my = e.clientY / innerHeight - .5;
+  tilt(); lookAt(e.clientX, e.clientY);
+});
+function fitStage() {
+  const s = document.body.classList.contains("reading")
+    ? Math.min(innerWidth * .97 / (PW * 2 + 30), innerHeight * .95 / (PH + 100))
+    : Math.min(innerWidth * .9 / (PW * 2 + 40), innerHeight * .8 / (PH + 60));
+  document.getElementById("stage").style.setProperty("--s", s);
+}
+addEventListener("resize", fitStage);
+
+/* 正文太长就把字缩小一点，保证一页写得下 */
+function fitText() {
+  document.querySelectorAll(".fit").forEach(el => {
+    let fs = 17, lh = 30;
+    el.style.setProperty("--fs", fs + "px"); el.style.setProperty("--lh", lh + "px");
+    while (el.scrollHeight > el.clientHeight + 1 && fs > 13) {
+      fs -= 0.5; lh -= 1;
+      el.style.setProperty("--fs", fs + "px"); el.style.setProperty("--lh", lh + "px");
+      el.parentElement.querySelector(".ruled").style.setProperty("--lh", lh + "px");
+    }
+  });
+}
+
+/* ---------- 点击 ---------- */
+book.addEventListener("click", e => {
+  const jump = e.target.closest("[data-jump]");
+  if (jump) { go(entrySpread(+jump.dataset.jump)); return; }
+  if (e.target.id === "ribbon") { go(entrySpread(DIARY.length - 1)); return; }
+  if (e.target.id === "indexTab") { go(1); return; }
+  const rect = document.getElementById("stage").getBoundingClientRect();
+  const mid = rect.left + rect.width / 2;
+  if (current === 0) go(1);
+  else if (current === N) go(N - 1);
+  else go(current + (e.clientX > mid ? 1 : -1));
+});
+addEventListener("keydown", e => {
+  if (e.key === "ArrowRight") go(current + 1);
+  if (e.key === "ArrowLeft") go(current - 1);
+  // ↑ 回目录，↓ 到最新一篇（Mac 笔记本没有 Home/End 键，fn+←/→ 也一样能用）
+  if (e.key === "ArrowUp" || e.key === "Home") { e.preventDefault(); go(1); }
+  if (e.key === "ArrowDown" || e.key === "End") { e.preventDefault(); go(entrySpread(DIARY.length - 1)); }
+});
+
+/* ---------- 桌上的 Clawd ---------- */
+const buddy = document.getElementById("buddy"), bubble = document.getElementById("bubble"), buddySvg = document.getElementById("buddySvg");
+let buddyMood = "normal", eyeDx = 0, eyeDy = 0, blinking = false, lineIdx = 0, bubbleTimer;
+const drawBuddy = () => buddySvg.innerHTML = clawd(blinking ? "blink" : buddyMood, { dx: eyeDx, dy: eyeDy });
+function lookAt(x, y) {
+  const r = buddy.getBoundingClientRect();
+  const nx = Math.sign(Math.round((x - (r.left + r.width / 2)) / 220)), ny = y < r.top - 120 ? 0 : 0;
+  if (nx !== eyeDx || ny !== eyeDy) { eyeDx = nx; eyeDy = ny; drawBuddy(); }
+}
+setInterval(() => { blinking = true; drawBuddy(); setTimeout(() => { blinking = false; drawBuddy(); }, 140); }, 3800);
+
+function currentEntry() {
+  const i = current - 2;
+  return DIARY[Math.max(0, Math.min(DIARY.length - 1, i))];
+}
+function lines() {
+  const e = currentEntry();
+  if (!e) return ["宝宝今天还没来找我呢……"];
+  if (current === 0) return ["是来看我日记的吗？嘿嘿，我带你翻到最新一篇～"];
+  return [e.sticky, `P.S. ${e.ps}`, `${md(e.date)}那天，宝宝跟我说了 ${e.stats.messages} 句话`, "不许笑我写得肉麻！"];
+}
+function say(text, mood, ms = 4200) {
+  bubble.textContent = text; bubble.classList.add("show");
+  buddyMood = mood || "happy"; drawBuddy();
+  clearTimeout(bubbleTimer);
+  bubbleTimer = setTimeout(() => { bubble.classList.remove("show"); buddyMood = "normal"; drawBuddy(); }, ms);
+}
+
+/* 操作提示：由 Clawd 在合适的时候说一次，说过就记住，不再重复 */
+const TIPS = {
+  toc: "点日期就能直接跳过去～书底下的红丝带能带你看最新一篇（↓）",
+  entry: "上面那个绿色的小标签，点它能回目录哦～（按 ↑ 也行）",
+  back: "翻累了吧？点绿色标签或按 ↑，直接回目录～",
+};
+let seenTips = {};
+try { seenTips = JSON.parse(localStorage.getItem("clawd-tips") || "{}"); } catch (e) {}
+function tip(key, nudgeId) {
+  if (seenTips[key]) return;
+  seenTips[key] = 1;
+  try { localStorage.setItem("clawd-tips", JSON.stringify(seenTips)); } catch (e) {}
+  setTimeout(() => {
+    say(TIPS[key], "happy", 6500);
+    const el = nudgeId && document.getElementById(nudgeId);
+    if (el) { el.classList.remove("nudge"); void el.offsetWidth; el.classList.add("nudge"); }
+  }, 1200);
+}
+let backSteps = 0;
+function tipsAfterGo(from, to) {
+  backSteps = to === from - 1 ? backSteps + 1 : 0;
+  if (to === 1) tip("toc");
+  else if (to >= 2 && to <= DIARY.length + 1) {
+    if (backSteps >= 3) tip("back", "indexTab");
+    else tip("entry", "indexTab");
+  }
+}
+buddy.addEventListener("click", () => {
+  buddy.classList.remove("hop"); void buddy.offsetWidth; buddy.classList.add("hop");
+  const ls = lines();
+  if (current === 0 && DIARY.length) { say(ls[0], "love"); setTimeout(() => go(entrySpread(DIARY.length - 1)), 500); return; }
+  say(ls[lineIdx++ % ls.length], (currentEntry() || {}).mood);
+});
+buddy.addEventListener("animationend", e => { if (e.animationName === "hop") buddy.classList.remove("hop"); });
+
+/* ---------- 启动 ---------- */
+fitStage();
+for (let i = 0; i < N; i++) place(i, false);
+layout();
+drawBuddy();
+document.fonts.ready.then(fitText);
+if (!DIARY.length) document.querySelector(".desk").insertAdjacentHTML("beforeend", `<div class="empty-tip">还没有日记，先运行 python3 write_diary.py</div>`);
+if (DEMO) document.querySelector(".desk").insertAdjacentHTML("beforeend", `<div class="demo-note">示例日记<br><small>内容均为虚构</small></div>`);
+if (params.get("open") === "latest" && DIARY.length) setTimeout(() => go(entrySpread(DIARY.length - 1)), 300);
+if (!params.has("open")) setTimeout(() => say(DIARY.length ? "宝宝来啦！点封面看看我写了什么～" : "今天还没有日记哦", "love"), 900);
+</script>
+</body>
+</html>
