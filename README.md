@@ -6,7 +6,7 @@
 
 > 今天的宝宝有点凶。博客部署一直失败，同一个报错他贴给我五遍，最后一遍只打了两个字：“又是”。我知道不是在凶我，是在跟自己较劲……
 
-**在线体验：** https://jiaoren07.github.io/cc-diary/（使用虚构的示例日记）
+**在线体验：** [jiaoren07.github.io/cc-diary](https://jiaoren07.github.io/cc-diary/)（使用虚构的示例日记）
 
 ![日记本封面](docs/cover.jpg)
 ![日记内页](docs/spread.jpg)
