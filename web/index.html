@@ -697,7 +697,15 @@ document.fonts.ready.then(fitText);
 if (!DIARY.length) document.querySelector(".desk").insertAdjacentHTML("beforeend", `<div class="empty-tip">还没有日记，先运行 python3 write_diary.py</div>`);
 if (DEMO) document.querySelector(".desk").insertAdjacentHTML("beforeend", `<div class="demo-note">示例日记<br><small>内容均为虚构</small></div>`);
 if (params.get("open") === "latest" && DIARY.length) setTimeout(() => go(entrySpread(DIARY.length - 1)), 300);
-if (!params.has("open")) setTimeout(() => say(DIARY.length ? "宝宝来啦！点封面看看我写了什么～" : "今天还没有日记哦", "love"), 900);
+// ?date=2026-10-19 直接翻到那天；那天没写日记就翻到日期最接近的一篇
+const wantDate = params.get("date");
+if (wantDate && DIARY.length && !isNaN(Date.parse(wantDate))) {
+  const t = Date.parse(wantDate), gap = e => Math.abs(Date.parse(e.date) - t);
+  const best = DIARY.reduce((b, e, i) => gap(e) < gap(DIARY[b]) ? i : b, 0);
+  setTimeout(() => go(entrySpread(best)), 300);
+  if (DIARY[best].date !== wantDate) setTimeout(() => say(`${md(wantDate)}那天宝宝没来找我，先翻到${md(DIARY[best].date)}啦`, "worried", 5500), 1600);
+}
+if (!params.has("open") && !wantDate) setTimeout(() => say(DIARY.length ? "宝宝来啦！点封面看看我写了什么～" : "今天还没有日记哦", "love"), 900);
 </script>
 </body>
 </html>
