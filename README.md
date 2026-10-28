@@ -74,7 +74,9 @@ cd cc-diary
 python3 write_diary.py    # 先手动写一篇今天的
 ```
 
-然后在 Claude Code 里输入 `/diary`，或者 `/diary 写今天`、`/diary 补写`。
+然后在 Claude Code 里输入 `/diary`，或者 `/diary 写今天`、`/diary 看看上周三的`、`/diary 补写`。
+
+需要代理才能访问 Claude 的话，在项目目录新建 `local.env`，写一行 `DIARY_PROXY=http://127.0.0.1:端口`。后台定时任务不会自动走系统代理，靠它连网；代理没开时会自动直连。可以用 `./run_nightly.sh --check` 测试连接。
 
 ## 目录
 

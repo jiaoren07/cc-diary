@@ -10,3 +10,6 @@ com.clawd.diary.plist
 .DS_Store
 __pycache__/
 *.pyc
+
+# 本机代理等私人设置
+local.env
